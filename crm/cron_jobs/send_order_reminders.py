@@ -3,6 +3,7 @@
 Robust GraphQL script that handles server downtime gracefully.
 """
 
+from gql import gql, Client
 import requests
 import json
 from datetime import datetime, timedelta
