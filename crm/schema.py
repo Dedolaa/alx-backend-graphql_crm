@@ -5,6 +5,7 @@ import django_filters
 from django.db.models import F
 from .models import Customer, Product, Order
 from crm.models import Product
+from django.db.models import Count, Sum
 
 
 # =======================
@@ -176,10 +177,33 @@ class UpdateLowStockProducts(graphene.Mutation):
 
 class Mutation(graphene.ObjectType):
     update_low_stock_products = UpdateLowStockProducts.Field()
-    # Add other mutations here...
+    
 
-# Make sure to include the mutation in your schema
+
 schema = graphene.Schema(
-    query=Query,  # You should have a Query class defined elsewhere
+    query=Query,  
     mutation=Mutation
 )
+
+class Query(graphene.ObjectType):
+    
+    
+    total_customers = graphene.Int()
+    total_orders = graphene.Int()
+    total_revenue = graphene.Float()
+    
+    def resolve_total_customers(self, info):
+        return Customer.objects.count()
+    
+    def resolve_total_orders(self, info):
+        return Order.objects.count()
+    
+    def resolve_total_revenue(self, info):
+        result = Order.objects.aggregate(total=Sum('total_amount'))
+        return result['total'] or 0
+    
+    
+    recent_orders = graphene.List(OrderType, limit=graphene.Int())
+    
+    def resolve_recent_orders(self, info, limit=5):
+        return Order.objects.order_by('-order_date')[:limit]
