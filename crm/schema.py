@@ -4,6 +4,7 @@ from graphene_django.filter import DjangoFilterConnectionField
 import django_filters
 from django.db.models import F
 from .models import Customer, Product, Order
+from crm.models import Product
 
 
 # =======================
