@@ -21,3 +21,21 @@ echo "django-celery-beat==2.5.0" >> requirements.txt
 
 # Install all dependencies
 pip install -r requirements.txt
+
+Install Redis
+Celery requires a message broker. We use **Redis**.
+
+- **Linux / WSL (Ubuntu):**
+  ```bash
+  sudo apt update && sudo apt install redis-server -y
+  sudo systemctl enable redis-server
+  sudo systemctl start redis-server
+
+# Apply database migrations
+python manage.py migrate
+
+# Celery Worker
+celery -A crm worker -l info
+
+# Celery Beat (scheduler)
+celery -A crm beat -l info
