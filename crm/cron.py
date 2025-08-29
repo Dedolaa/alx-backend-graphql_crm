@@ -1,6 +1,9 @@
 """
 Cron jobs for the CRM application.
 """
+
+from gql.transport.requests import RequestsHTTPTransport
+from gql import gql, Client
 import os
 from datetime import datetime
 import requests
