@@ -2,7 +2,7 @@ import graphene
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 import django_filters
-
+from django.db.models import F
 from .models import Customer, Product, Order
 
 
@@ -126,3 +126,59 @@ class Mutation(graphene.ObjectType):
     create_customer = CreateCustomer.Field()
     create_product = CreateProduct.Field()
     create_order = CreateOrder.Field()
+
+class ProductType(DjangoObjectType):
+    class Meta:
+        model = Product
+        fields = "__all__"
+
+class UpdateLowStockProducts(graphene.Mutation):
+    class Arguments:
+        pass  # No arguments needed for this mutation
+
+    success = graphene.Boolean()
+    message = graphene.String()
+    updated_products = graphene.List(ProductType)
+
+    def mutate(self, info):
+        try:
+            # Find products with stock less than 10
+            low_stock_products = Product.objects.filter(stock__lt=10)
+            
+            if not low_stock_products.exists():
+                return UpdateLowStockProducts(
+                    success=True,
+                    message="No low-stock products found",
+                    updated_products=[]
+                )
+            
+            # Update stock by adding 10 to each low-stock product
+            updated_count = low_stock_products.update(stock=F('stock') + 10)
+            
+            # Get the updated products
+            updated_products = Product.objects.filter(
+                id__in=low_stock_products.values_list('id', flat=True)
+            )
+            
+            return UpdateLowStockProducts(
+                success=True,
+                message=f"Successfully updated {updated_count} low-stock products",
+                updated_products=updated_products
+            )
+            
+        except Exception as e:
+            return UpdateLowStockProducts(
+                success=False,
+                message=f"Error updating low-stock products: {str(e)}",
+                updated_products=[]
+            )
+
+class Mutation(graphene.ObjectType):
+    update_low_stock_products = UpdateLowStockProducts.Field()
+    # Add other mutations here...
+
+# Make sure to include the mutation in your schema
+schema = graphene.Schema(
+    query=Query,  # You should have a Query class defined elsewhere
+    mutation=Mutation
+)

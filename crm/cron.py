@@ -68,7 +68,89 @@ def log_crm_heartbeat():
         
         return f"Heartbeat failed: {str(e)}"
 
-# Optional: Additional cron jobs can be added here
-def another_cron_job():
-    """Example of another cron job."""
-    pass
+
+def update_low_stock():
+    """
+    Update low-stock products every 12 hours using GraphQL mutation.
+    """
+    try:
+        timestamp = datetime.now().strftime("%d/%m/%Y-%H:%M:%S")
+        log_file_path = "/tmp/low_stock_updates_log.txt"
+        
+        # GraphQL mutation
+        mutation = """
+        mutation {
+            updateLowStockProducts {
+                success
+                message
+                updatedProducts {
+                    id
+                    name
+                    stock
+                    price
+                }
+            }
+        }
+        """
+        
+        # Execute the mutation
+        url = "http://localhost:8000/graphql"
+        payload = {"query": mutation}
+        
+        response = requests.post(url, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Check for GraphQL errors
+        if 'errors' in result:
+            error_message = f"{timestamp} GraphQL errors: {result['errors']}\n"
+            with open(log_file_path, 'a') as log_file:
+                log_file.write(error_message)
+            return f"GraphQL errors: {result['errors']}"
+        
+        # Process the mutation result
+        mutation_result = result.get('data', {}).get('updateLowStockProducts', {})
+        
+        success = mutation_result.get('success', False)
+        message = mutation_result.get('message', 'No message')
+        updated_products = mutation_result.get('updatedProducts', [])
+        
+        # Log the results
+        log_message = f"{timestamp} Low Stock Update Results:\n"
+        log_message += f"Success: {success}\n"
+        log_message += f"Message: {message}\n"
+        
+        if updated_products:
+            log_message += "Updated Products:\n"
+            for product in updated_products:
+                log_message += f"  - {product['name']}: Stock updated to {product['stock']} (Price: ${product['price']})\n"
+        else:
+            log_message += "No products were updated.\n"
+        
+        log_message += "-" * 50 + "\n"
+        
+        # Write to log file
+        with open(log_file_path, 'a') as log_file:
+            log_file.write(log_message)
+        
+        return f"Low stock update completed: {message}"
+        
+    except requests.exceptions.ConnectionError:
+        error_message = f"{timestamp} Failed to connect to GraphQL server\n"
+        with open(log_file_path, 'a') as log_file:
+            log_file.write(error_message)
+        return "Failed to connect to GraphQL server"
+        
+    except requests.exceptions.RequestException as e:
+        error_message = f"{timestamp} Network error: {str(e)}\n"
+        with open(log_file_path, 'a') as log_file:
+            log_file.write(error_message)
+        return f"Network error: {str(e)}"
+        
+    except Exception as e:
+        error_message = f"{timestamp} Unexpected error: {str(e)}\n"
+        with open(log_file_path, 'a') as log_file:
+            log_file.write(error_message)
+        return f"Unexpected error: {str(e)}"
+    
